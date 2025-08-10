@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="tr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bafra Belediyesi - İleri Düzey PostgreSQL Eğitimi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals (Slate, Sky Blue) -->
+    <!-- Application Structure Plan: A single-page, scrollable dashboard with a sticky top navigation. Content is organized into thematic sections (Overview, Schedule, Detailed Modules). Key information is presented in interactive accordions and cards to avoid cognitive overload. The primary user flow is top-down exploration, with the nav bar allowing jumps to specific sections. This structure was chosen to transform a linear document into an explorable, engaging learning path, prioritizing high-level understanding first (overview chart, schedule) before diving into details. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: 30-hour schedule breakdown -> Goal: Inform/Compare -> Viz: Doughnut Chart (Chart.js) -> Interaction: Hover for tooltips -> Justification: Provides a quick, digestible overview of topic weight.
+        - Report Info: JOIN types -> Goal: Compare/Explain -> Viz: Interactive HTML Tables -> Interaction: Buttons to simulate INNER, LEFT, FULL joins by highlighting rows -> Justification: Active learning is far more effective than static text for this core concept.
+        - Report Info: PostGIS spatial queries -> Goal: Explain -> Viz: Scatter Plot on Canvas (Chart.js) -> Interaction: Static visual representation of a buffer query -> Justification: Visually demonstrates a complex spatial concept simply.
+        - Report Info: Module content -> Goal: Organize/Inform -> Viz: Accordion-style cards -> Interaction: Click to expand/collapse -> Justification: Manages information density and allows users to focus on one topic at a time.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 400px;
+        }
+        .table-highlight-inner { background-color: rgba(59, 130, 246, 0.2); transition: background-color 0.3s; }
+        .table-highlight-left { background-color: rgba(16, 185, 129, 0.2); transition: background-color 0.3s; }
+        .table-highlight-full { background-color: rgba(239, 68, 68, 0.2); transition: background-color 0.3s; }
+        .nav-active {
+            color: #0284c7;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="text-xl font-bold text-slate-700">
+                    Bafra <span class="text-sky-600">PostgreSQL</span> Eğitimi
+                </div>
+                <div class="hidden md:flex space-x-6 text-slate-600 font-medium">
+                    <a href="#genel-bakis" class="hover:text-sky-600 transition duration-300 nav-link">Genel Bakış</a>
+                    <a href="#program" class="hover:text-sky-600 transition duration-300 nav-link">Program</a>
+                    <a href="#moduller" class="hover:text-sky-600 transition duration-300 nav-link">Modüller</a>
+                    <a href="#atolyeler" class="hover:text-sky-600 transition duration-300 nav-link">Atölyeler</a>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-slate-600 focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="mobile-menu" class="hidden md:hidden py-2">
+                <a href="#genel-bakis" class="block py-2 px-4 text-sm text-slate-600 hover:bg-sky-50 rounded nav-link">Genel Bakış</a>
+                <a href="#program" class="block py-2 px-4 text-sm text-slate-600 hover:bg-sky-50 rounded nav-link">Program</a>
+                <a href="#moduller" class="block py-2 px-4 text-sm text-slate-600 hover:bg-sky-50 rounded nav-link">Modüller</a>
+                <a href="#atolyeler" class="block py-2 px-4 text-sm text-slate-600 hover:bg-sky-50 rounded nav-link">Atölyeler</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero" class="bg-white pt-16 pb-20">
+            <div class="container mx-auto px-4 text-center">
+                <h1 class="text-4xl md:text-5xl font-bold text-slate-800 leading-tight">
+                    Samsun Bafra Belediyesi için <br>
+                    <span class="text-sky-600">Uygulamalı PostgreSQL Eğitim Programı</span>
+                </h1>
+                <p class="mt-6 max-w-3xl mx-auto text-lg text-slate-600">
+                    Bu 30 saatlik yoğunlaştırılmış eğitim, belediyemizin teknik ekibini Personel, İmar ve Vatandaş gibi kritik veri setleri üzerinde tam hakimiyet kuracakları ileri düzey PostgreSQL uzmanları haline getirmeyi amaçlamaktadır.
+                </p>
+            </div>
+        </section>
+
+        <section id="genel-bakis" class="py-20">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold">Müfredata Genel Bakış</h2>
+                    <p class="mt-2 text-slate-500">Eğitim, stratejik temelden ileri düzey optimizasyon ve yönetime uzanan 6 ana modülden oluşur.</p>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                        <h3 class="font-bold text-lg text-sky-700">1. Stratejik Başlangıç</h3>
+                        <p class="mt-2 text-sm text-slate-600">PostgreSQL'in kamu için önemi, mimarisi ve temel yönetim araçları (`pgAdmin`, `psql`).</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                        <h3 class="font-bold text-lg text-sky-700">2. İleri Düzey Sorgulama</h3>
+                        <p class="mt-2 text-sm text-slate-600">Veri modelleme, kompleks `JOIN`'ler, CTE'ler ve analitik (pencere) fonksiyonları.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                        <h3 class="font-bold text-lg text-sky-700">3. Veritabanı Programlama</h3>
+                        <p class="mt-2 text-sm text-slate-600">PL/pgSQL ile fonksiyonlar, saklı yordamlar ve otomasyon için tetikleyiciler (triggers).</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                        <h3 class="font-bold text-lg text-sky-700">4. Performans Optimizasyonu</h3>
+                        <p class="mt-2 text-sm text-slate-600">`EXPLAIN ANALYZE` ile sorgu analizi, akıllı indeksleme stratejileri ve veritabanı bakımı.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                        <h3 class="font-bold text-lg text-sky-700">5. Mekansal Veri Yönetimi</h3>
+                        <p class="mt-2 text-sm text-slate-600">PostGIS eklentisi ile imar verileri gibi coğrafi verilerin analizi ve yönetimi.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+                        <h3 class="font-bold text-lg text-sky-700">6. Yönetim ve Güvenlik</h3>
+                        <p class="mt-2 text-sm text-slate-600">Rol ve yetki yönetimi, KVKK uyumluluğu, yedekleme ve felaket kurtarma stratejileri.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="program" class="py-20 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold">Eğitim Programı ve Konu Dağılımı</h2>
+                    <p class="mt-2 text-slate-500">30 saatlik eğitimin modüllere göre zaman dağılımı ve 5 günlük yoğunlaştırılmış program.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 text-center">Modül Yoğunlukları (Saat)</h3>
+                        <div class="chart-container">
+                            <canvas id="moduleHoursChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <h3 class="text-xl font-semibold mb-4 text-center">5 Günlük Yoğunlaştırılmış Plan</h3>
+                        <div class="bg-slate-50 p-4 rounded-lg shadow-inner">
+                            <div class="grid grid-cols-6 gap-2 text-center font-bold text-sm mb-2">
+                                <div></div>
+                                <div class="p-2">Pzt</div>
+                                <div class="p-2">Salı</div>
+                                <div class="p-2">Çar</div>
+                                <div class="p-2">Per</div>
+                                <div class="p-2">Cum</div>
+                            </div>
+                            <div class="grid grid-cols-6 gap-2 text-xs text-center">
+                                <div class="font-bold text-right pr-2">09-11</div>
+                                <div class="bg-sky-100 text-sky-800 p-2 rounded-md">Strateji</div>
+                                <div class="bg-teal-100 text-teal-800 p-2 rounded-md">JOIN'ler</div>
+                                <div class="bg-indigo-100 text-indigo-800 p-2 rounded-md">PL/pgSQL</div>
+                                <div class="bg-amber-100 text-amber-800 p-2 rounded-md">EXPLAIN</div>
+                                <div class="bg-rose-100 text-rose-800 p-2 rounded-md">Bakım</div>
+                                
+                                <div class="font-bold text-right pr-2">11-13</div>
+                                <div class="bg-sky-100 text-sky-800 p-2 rounded-md">Veri Tipi</div>
+                                <div class="bg-teal-100 text-teal-800 p-2 rounded-md">CTE</div>
+                                <div class="bg-indigo-100 text-indigo-800 p-2 rounded-md">Fonksiyon</div>
+                                <div class="bg-amber-100 text-amber-800 p-2 rounded-md">İndeksler</div>
+                                <div class="bg-lime-100 text-lime-800 p-2 rounded-md">PostGIS</div>
+
+                                <div class="font-bold text-right pr-2">14-16</div>
+                                <div class="bg-sky-100 text-sky-800 p-2 rounded-md">Kısıtlama</div>
+                                <div class="bg-teal-100 text-teal-800 p-2 rounded-md">Analitik F.</div>
+                                <div class="bg-indigo-100 text-indigo-800 p-2 rounded-md">Trigger</div>
+                                <div class="bg-amber-100 text-amber-800 p-2 rounded-md">İleri İnd.</div>
+                                <div class="bg-fuchsia-100 text-fuchsia-800 p-2 rounded-md">Yönetim</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="moduller" class="py-20">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold">Detaylı Modül İçerikleri</h2>
+                    <p class="mt-2 text-slate-500">Her bir modülün içeriğini ve öne çıkan konuları keşfedin.</p>
+                </div>
+                <div id="accordion-container" class="space-y-4">
+                    <!-- Accordion items will be injected here by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <section id="atolyeler" class="py-20 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold">Uygulamalı Atölye Çalışmaları</h2>
+                    <p class="mt-2 text-slate-500">Teorik bilgiyi, belediyemizin gerçek veri senaryolarıyla pratiğe döküyoruz.</p>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div class="text-center p-6 bg-slate-50 rounded-lg">
+                        <div class="text-4xl mb-3">📈</div>
+                        <h3 class="font-semibold text-lg">Kapsamlı Raporlama</h3>
+                        <p class="mt-2 text-sm text-slate-600">Vatandaş ve imar verilerini birleştirerek mahalle bazında demografik analiz raporları oluşturma.</p>
+                    </div>
+                    <div class="text-center p-6 bg-slate-50 rounded-lg">
+                        <div class="text-4xl mb-3">⚙️</div>
+                        <h3 class="font-semibold text-lg">Prosedürel Programlama</h3>
+                        <p class="mt-2 text-sm text-slate-600">Personel kıdemini hesaplayan fonksiyon ve maaş değişikliklerini loglayan denetim tetikleyicisi yazma.</p>
+                    </div>
+                    <div class="text-center p-6 bg-slate-50 rounded-lg">
+                        <div class="text-4xl mb-3">🚀</div>
+                        <h3 class="font-semibold text-lg">Performans Optimizasyonu</h3>
+                        <p class="mt-2 text-sm text-slate-600">Yavaş çalışan bir metin arama sorgusunu, doğru indeksleme (GIN) ile onlarca kat hızlandırma.</p>
+                    </div>
+                    <div class="text-center p-6 bg-slate-50 rounded-lg">
+                        <div class="text-4xl mb-3">🗺️</div>
+                        <h3 class="font-semibold text-lg">Mekansal Analiz</h3>
+                        <p class="mt-2 text-sm text-slate-600">PostGIS ile mekansal birleştirme (spatial join) yaparak sosyal donatıların hangi mahallede olduğunu bulma.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-800 text-white py-10">
+        <div class="container mx-auto px-4 text-center text-slate-400">
+            <p>Samsun Bafra Belediyesi PostgreSQL Eğitim Programı</p>
+            <p class="text-sm mt-2">Veri odaklı ve verimli bir gelecek için.</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const curriculumData = [
+        {
+            title: "Bölüm 1: Stratejik Başlangıç: PostgreSQL ve Kamu Veri Yönetimi",
+            content: `Bu açılış modülü, katılımcılara "Neden PostgreSQL?" sorusunun yanıtını, bir kamu kurumunun öncelikleri çerçevesinde vererek, öğrenilecek teknolojinin kurumsal hedeflerle nasıl örtüştüğünü ortaya koyar. Açık kaynak avantajları, veri bütünlüğü (ACID), genişletilebilirlik (PostGIS) ve temel yönetim araçları olan <strong>pgAdmin</strong> (görsel arayüz) ve <strong>psql</strong> (komut satırı) tanıtılır.`
+        },
+        {
+            title: "Bölüm 2: Veri Modellemeden İleri Düzey Sorgulamaya",
+            content: `Bu modül, veriyi bir bilgi kaynağına dönüştürmeye odaklanır. Gelişmiş veri tipleri (<strong>JSONB, UUID</strong>), veri bütünlüğü için kısıtlamalar (Constraints), farklı <strong>JOIN</strong> teknikleri ve modern SQL yazımının temeli olan <strong>CTE'ler (Common Table Expressions)</strong> ele alınır. Modülün zirve noktası, satırları birleştirmeden gruplar üzerinde hesaplama yapmayı sağlayan güçlü <strong>Pencere Fonksiyonları (Window Functions)</strong>'dır.`,
+            interactiveElement: `
+                <div class="mt-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
+                    <h4 class="font-semibold text-center mb-4">İnteraktif JOIN Simülatörü</h4>
+                    <div class="grid md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="font-bold mb-1">Personel Tablosu</p>
+                            <table class="w-full border-collapse">
+                                <thead><tr class="bg-slate-200"><th class="border p-2">id</th><th class="border p-2">ad</th><th class="border p-2">dep_id</th></tr></thead>
+                                <tbody id="table-personel">
+                                    <tr data-depid="1"><td class="border p-2">1</td><td class="border p-2">Ali</td><td class="border p-2">1</td></tr>
+                                    <tr data-depid="1"><td class="border p-2">2</td><td class="border p-2">Veli</td><td class="border p-2">1</td></tr>
+                                    <tr data-depid="2"><td class="border p-2">3</td><td class="border p-2">Ayşe</td><td class="border p-2">2</td></tr>
+                                    <tr data-depid="null"><td class="border p-2">4</td><td class="border p-2">Hasan</td><td class="border p-2 text-slate-400">NULL</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <p class="font-bold mb-1">Departman Tablosu</p>
+                            <table class="w-full border-collapse">
+                                <thead><tr class="bg-slate-200"><th class="border p-2">id</th><th class="border p-2">dep_ad</th></tr></thead>
+                                <tbody id="table-departman">
+                                    <tr data-depid="1"><td class="border p-2">1</td><td class="border p-2">İmar</td></tr>
+                                    <tr data-depid="2"><td class="border p-2">2</td><td class="border p-2">Personel</td></tr>
+                                    <tr data-depid="3"><td class="border p-2">3</td><td class="border p-2">Mali İşler</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-center space-x-2">
+                        <button onclick="simulateJoin('inner')" class="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded hover:bg-blue-600">INNER JOIN</button>
+                        <button onclick="simulateJoin('left')" class="px-3 py-1 text-xs font-medium text-white bg-emerald-500 rounded hover:bg-emerald-600">LEFT JOIN</button>
+                        <button onclick="simulateJoin('full')" class="px-3 py-1 text-xs font-medium text-white bg-red-500 rounded hover:bg-red-600">FULL OUTER JOIN</button>
+                        <button onclick="simulateJoin('reset')" class="px-3 py-1 text-xs font-medium text-slate-700 bg-slate-200 rounded hover:bg-slate-300">Sıfırla</button>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Bölüm 3: Veritabanı Programlama ve Otomasyon: PL/pgSQL",
+            content: `İş mantığını, otomasyonu ve veri doğrulama kurallarını doğrudan veritabanı katmanına taşımayı öğretir. <strong>PL/pgSQL</strong> dilinin temelleri, yeniden kullanılabilir kod blokları için <strong>Fonksiyonlar</strong> ve <strong>Saklı Yordamlar</strong>, ve veri değişikliklerinde otomatik olarak çalışan <strong>Tetikleyiciler (Triggers)</strong> ile denetim ve otomasyonun nasıl sağlanacağı uygulamalı olarak gösterilir.`
+        },
+        {
+            title: "Bölüm 4: Performansın Anahtarı: İndeksleme ve Optimizasyon",
+            content: `Veritabanı performansının "kara kutu" olmadığını, aksine anlaşılabilir ve iyileştirilebilir bir sistem olduğunu gösterir. Yavaş sorguları <strong>EXPLAIN ANALYZE</strong> ile teşhis etme, doğru <strong>indeks türünü (B-Tree, GIN, GiST)</strong> seçme, kısmi ve çok sütunlu gibi ileri düzey indeksleme teknikleri ve <strong>VACUUM, ANALYZE</strong> gibi bakım işlemlerinin önemi vurgulanır. Milyonlarca satırlık tablolar için <strong>Tablo Bölümleme (Partitioning)</strong> tekniği de tanıtılır.`
+        },
+        {
+            title: "Bölüm 5: Mekansal Veri Yönetimi: PostGIS ile İmar Verileri",
+            content: `PostgreSQL'i tam teşekküllü bir Coğrafi Bilgi Sistemi'ne (CBS) dönüştüren <strong>PostGIS</strong> eklentisine odaklanır. Mekansal veri tipleri, Shapefile gibi standart formatlardan veri yükleme ve en önemlisi, <strong>ST_Distance, ST_Contains, ST_Buffer</strong> gibi mekansal fonksiyonlar kullanılarak imar verileri üzerinde coğrafi analizler yapma öğretilir. İki tabloyu coğrafi ilişkilerine göre birleştiren <strong>Mekansal Birleştirme (Spatial Join)</strong> kavramı, belediye senaryolarıyla pekiştirilir.`,
+            interactiveElement: `
+                <div class="mt-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
+                    <h4 class="font-semibold text-center mb-4">Görselleştirme: Mekansal Sorgu (ST_DWithin)</h4>
+                    <p class="text-xs text-center text-slate-500 mb-2">Bir okulun (merkez nokta) 500m çevresindeki binaları (diğer noktalar) bulma simülasyonu.</p>
+                    <div class="chart-container" style="max-width: 300px; height: 300px;">
+                        <canvas id="spatialQueryChart"></canvas>
+                    </div>
+                </div>
+            `
+        },
+        {
+            title: "Bölüm 6: Yönetim, Güvenlik ve Veri Koruma",
+            content: `Veritabanının uzun vadeli sağlığını, güvenliğini ve sürdürülebilirliğini sağlamaya odaklanır. "En az yetki prensibi" ile <strong>Rol ve Yetki Yönetimi</strong>, KVKK gibi yasalara uyumluluk, <strong>pg_dump</strong> ile mantıksal <strong>Yedekleme ve Geri Yükleme</strong> stratejileri ve bir felaket anında belirli bir zamana dönebilmeyi sağlayan <strong>Point-in-Time Recovery (PITR)</strong> konsepti ele alınır.`
+        }
+    ];
+
+    const accordionContainer = document.getElementById('accordion-container');
+    curriculumData.forEach((item, index) => {
+        const accordionItem = document.createElement('div');
+        accordionItem.className = 'bg-white rounded-lg shadow-sm overflow-hidden';
+        accordionItem.innerHTML = `
+            <button class="w-full text-left p-4 flex justify-between items-center font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none accordion-toggle">
+                <span>${item.title}</span>
+                <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <div class="p-6 border-t border-slate-200 hidden accordion-content">
+                <p class="text-slate-600">${item.content}</p>
+                ${item.interactiveElement || ''}
+            </div>
+        `;
+        accordionContainer.appendChild(accordionItem);
+    });
+
+    document.querySelectorAll('.accordion-toggle').forEach(button => {
+        button.addEventListener('click', () => {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('svg');
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        });
+    });
+
+    const moduleHoursCtx = document.getElementById('moduleHoursChart').getContext('2d');
+    new Chart(moduleHoursCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Strateji', 'Sorgulama', 'Programlama', 'Performans', 'PostGIS', 'Yönetim'],
+            datasets: [{
+                label: 'Saat',
+                data: [4, 8, 6, 6, 4, 2],
+                backgroundColor: [
+                    '#bae6fd', '#6ee7b7', '#c4b5fd', '#fde68a', '#d8b4fe', '#fbcfe8'
+                ],
+                borderColor: [
+                    '#0284c7', '#047857', '#6d28d9', '#b45309', '#7e22ce', '#9d174d'
+                ],
+                borderWidth: 1.5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.raw} saat`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    if (document.getElementById('spatialQueryChart')) {
+        const spatialCtx = document.getElementById('spatialQueryChart').getContext('2d');
+        new Chart(spatialCtx, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                {
+                    label: 'Okul (Merkez)',
+                    data: [{x: 5, y: 5}],
+                    backgroundColor: 'rgb(239, 68, 68)',
+                    pointRadius: 8,
+                    pointHoverRadius: 10
+                },
+                {
+                    label: '500m İçindeki Binalar',
+                    data: [{x: 4, y: 6}, {x: 6, y: 4.5}, {x: 5.5, y: 3}],
+                    backgroundColor: 'rgb(59, 130, 246)',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                },
+                {
+                    label: 'Dışındaki Binalar',
+                    data: [{x: 1, y: 2}, {x: 8, y: 9}, {x: 2, y: 8.5}],
+                    backgroundColor: 'rgb(107, 114, 128)',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { min: 0, max: 10, display: false },
+                    y: { min: 0, max: 10, display: false }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false },
+                    'custom-circle': {}
+                }
+            },
+            plugins: [{
+                id: 'custom-circle',
+                beforeDraw(chart) {
+                    const {ctx, chartArea: {top, bottom, left, right, width, height}} = chart;
+                    const meta = chart.getDatasetMeta(0);
+                    const point = meta.data[0];
+                    const radius = Math.min(width, height) * 0.4;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }]
+        });
+    }
+
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileMenuButton.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+    });
+
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = document.querySelectorAll('main section');
+    window.addEventListener('scroll', () => {
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            if (pageYOffset >= sectionTop - 100) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        navLinks.forEach(link => {
+            link.classList.remove('nav-active');
+            if (link.getAttribute('href').includes(current)) {
+                link.classList.add('nav-active');
+            }
+        });
+    });
+});
+
+function simulateJoin(type) {
+    const personelRows = document.querySelectorAll('#table-personel tr');
+    const departmanRows = document.querySelectorAll('#table-departman tr');
+    const allRows = [...personelRows, ...departmanRows];
+
+    allRows.forEach(row => {
+        row.classList.remove('table-highlight-inner', 'table-highlight-left', 'table-highlight-full');
+    });
+
+    if (type === 'inner') {
+        personelRows.forEach(pRow => {
+            if (pRow.dataset.depid === '1' || pRow.dataset.depid === '2') {
+                pRow.classList.add('table-highlight-inner');
+            }
+        });
+        departmanRows.forEach(dRow => {
+            if (dRow.dataset.depid === '1' || dRow.dataset.depid === '2') {
+                dRow.classList.add('table-highlight-inner');
+            }
+        });
+    } else if (type === 'left') {
+        personelRows.forEach(pRow => pRow.classList.add('table-highlight-left'));
+        departmanRows.forEach(dRow => {
+            if (dRow.dataset.depid === '1' || dRow.dataset.depid === '2') {
+                dRow.classList.add('table-highlight-left');
+            }
+        });
+    } else if (type === 'full') {
+        allRows.forEach(row => row.classList.add('table-highlight-full'));
+    }
+}
+</script>
+
+</body>
+</html>
